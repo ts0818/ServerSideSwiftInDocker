@@ -1,0 +1,67 @@
+version: "3"
+services:
+# Nginx
+  nginx:
+    image: nginx:1.17.6-alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./docker/nginx/vapor.conf:/etc/nginx/conf.d
+      #- ./docker/nginx/nginx.conf:/etc/nginx
+      - ./docker/nginx/logs:/var/log/nginx
+    depends_on:
+      - app
+# Ubuntu 18.04、Swift、Vapor
+  app:
+    build:
+      context: ./docker/swift
+      dockerfile: vapor.Dockerfile
+    image: vapor
+    networks:
+      - swiftnet
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      - db
+# MySQL Database
+  db:
+    image: mysql:8.0.18
+    networks:
+      - swiftnet
+    volumes:
+      - db-swift:/var/lib/mysql
+      - ./logs:/var/log/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+      - MYSQL_ROOT_PASSWORD=${DB_PASS}
+      - TZ=${TZ}
+    ports:
+      - ${DB_PORT}:3306
+    entrypoint: ""
+    command: bash -c "chown -R mysql:mysql /var/log/mysql && exec /entrypoint.sh mysqld"
+
+  db-testing:
+    image: mysql:8.0.18
+    networks:
+      - swiftnet
+    volumes:
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    tmpfs:
+      - /var/lib/mysql
+      - /var/log/mysql
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+      - MYSQL_ROOT_PASSWORD=${DB_PASS}
+      - TZ=${TZ}
+volumes:
+  db-swift:
+networks:
+  swiftnet:
+    external: true
